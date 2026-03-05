@@ -1,0 +1,23 @@
+=== formaldehyde: excited-state summary (vertical) ===
+Ground geom: pbe0/def2-tzvp, PySCF 2.12.1
+
+TD-DFT: TD-pbe0/def2-tzvp (nstates=5)
+  S1: E=4.0429 eV  (λ=306.7 nm)  f=0.0000  NTO w0=0.999  n→π*
+  S2: E=8.1786 eV  (λ=151.6 nm)  f=0.1075  NTO w0=0.997  n→π*
+  S3: E=9.2461 eV  (λ=134.1 nm)  f=0.0002  NTO w0=0.996  π→π*
+  S4: E=9.3335 eV  (λ=132.8 nm)  f=0.0339  NTO w0=0.999  n→π*
+  S5: E=9.5279 eV  (λ=130.1 nm)  f=0.0006  NTO w0=0.530  n→π*
+
+SA-CASSCF(4,3)/def2-tzvp
+  Root 1: ΔE=1.9334 eV
+  Root 2: ΔE=2.7826 eV
+  Root 3: ΔE=3.1049 eV
+  Root 4: ΔE=4.7992 eV
+  Root 5: ΔE=6.9377 eV
+
+NEVPT2//CASCI(4,3)/def2-tzvp @ SA-CASSCF orbitals
+  Root 1: ΔE=0.9734 eV
+  Root 2: ΔE=3.4802 eV
+  Root 3: ΔE=1.6623 eV
+  Root 4: ΔE=5.1166 eV
+  Root 5: ΔE=6.6790 eV

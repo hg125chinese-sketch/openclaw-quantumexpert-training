@@ -1,0 +1,12 @@
+{
+  "owner": "heng",
+  "slug": "qchem-dft",
+  "displayName": "DFT Calculations & SCF Diagnostics",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1740192000000,
+    "commit": "local"
+  },
+  "history": []
+}
+
