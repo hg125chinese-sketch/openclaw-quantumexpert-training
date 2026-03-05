@@ -233,6 +233,6 @@ MIT. See [LICENSE](LICENSE).
   title={Teaching AI Agents Quantum Chemistry: A Systematic Training Methodology},
   author={Heng Gao},
   year={2026},
-  url={https://github.com/hg125chinese/openclaw-quantumexpert-training}
+  url={https://github.com/hg125chinese-sketch/openclaw-quantumexpert-training}
 }
 ```
