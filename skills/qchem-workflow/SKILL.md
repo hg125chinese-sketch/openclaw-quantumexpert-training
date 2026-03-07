@@ -77,18 +77,31 @@ Standard QC evaluation pipeline:
 Batch QC screening (e.g., 50 molecules from CE):
 │
 ├── Step 0: Receive input from CE
-│   ├── Expected: CSV or JSON with columns: mol_id, smiles, charge, spin
-│   ├── Validate: all SMILES parseable, no duplicates
-│   └── Output: validated_input.csv (N molecules)
+│   ├── Expected: CSV or JSON with columns:
+│   │     - mol_id
+│   │     - smiles
+│   │     - charge
+│   │     - spin
+│   │     - (optional) geometry_source: "rdkit_embed" | "diffsbdd_3d"
+│   │     - (optional) geometry_file: path to SDF/XYZ provided by CE
+│   ├── Validate:
+│   │     - all SMILES parseable (if provided)
+│   │     - geometry_file exists and is readable (if provided)
+│   │     - no duplicate mol_id
+│   └── Output: validated_input.json (N molecules)
 │
-├── Step 1: Pre-optimization (cheap, fail-fast)
-│   ├── Method: force field (UFF/MMFF) or xTB if available
-│   ├── Gate: 3D geometry generated; no clashes
-│   ├── Failures: log to failed_preopt.csv, continue with rest
-│   └── Output: initial_geometries/ directory (one .xyz per molecule)
+├── Step 1: Initial geometry (choose one)
+│   ├── If CE provided 3D geometry (geometry_source + geometry_file):
+│   │     - Gate: geometry can be loaded; reasonable bond lengths; no severe clashes
+│   │     - Output: initial_geometry.xyz (from CE geometry)
+│   │     - NOTE: skip RDKit embedding
+│   └── Else (no 3D geometry provided):
+│         - SMILES → RDKit embed (ETKDG)
+│         - Gate: embed succeeded; no severe clashes
+│         - Output: initial_geometry.xyz (RDKit)
 │
 ├── Step 2: DFT optimization + frequency [qchem-dft]
-│   ├── Method: B3LYP-D3(BJ)/def2-SVP (fast) or per project spec
+│   ├── Method: B97-D/def2-SVP (fast, dispersion-inclusive; validated default in our PySCF container) or per project spec
 │   ├── Batch strategy: process one molecule at a time
 │   │   ├── If SCF fails: log, skip, continue
 │   │   ├── If optimization doesn't converge: log, skip, continue
@@ -165,7 +178,7 @@ Systematic method comparison (e.g., functional benchmark):
 Every gate is a binary pass/fail check between pipeline steps. If a gate fails, the molecule does not proceed to the next step.
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Standard gate checks for QC workflow pipelines."""
 
 def gate_scf_converged(mf):
@@ -370,7 +383,7 @@ Batch processing principles:
 ### 4.2 Batch Execution Script Template
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Batch QC screening pipeline template."""
 import json
 import time
@@ -586,4 +599,3 @@ Pipeline interrupted?
 - **Returns to CE**: standardized qc_results.csv/json for downstream ADMET/docking/scoring
 - **Literature**: `chem-literature` for experimental reference values in benchmarking
 - **Batch lessons from CE**: chunk sizing, checkpoint strategy, timeout mitigation — all inherited from CE's IPF docking experience
-

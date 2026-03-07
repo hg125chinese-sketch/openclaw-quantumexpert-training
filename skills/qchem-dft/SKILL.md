@@ -67,6 +67,12 @@ Dispersion correction decision:
     (e.g., benchmarking against non-dispersion-corrected reference)
 
 Rule: If your functional name doesn't end in -D, add D3(BJ).
+
+**Environment-aware rule (mandatory):**
+- If D3/D4 tooling is unavailable in your environment (cannot import/build/run), **do not silently drop dispersion**.
+- Choose one of:
+  1) **Switch to a dispersion-inclusive functional available in your backend**, e.g. **B97-D** or **ωB97M-V** (VV10), and document the switch.
+  2) **Stop and ask for explicit approval** to run without dispersion, and justify the exception.
 ```
 
 ### 1.3 HF Exchange Sensitivity Warning (Transition Metals)
@@ -112,7 +118,7 @@ Auxiliary bases: def2/J (Coulomb fitting), def2/JK (exchange), def2-TZVP/C (corr
 **Always run this when reporting quantitative energetics** (barriers, binding energies, spin splitting):
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Basis set convergence test for a given molecule and property."""
 from pyscf import gto, dft
 import numpy as np
@@ -179,7 +185,7 @@ def basis_convergence_test(atom_str, charge=0, spin=0, functional='b3lyp'):
 ### 3.1 Default Settings (Start Here)
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Standard DFT single-point calculation with proper defaults."""
 from pyscf import gto, dft
 
@@ -316,7 +322,7 @@ def check_spin_contamination(mf, threshold=0.1):
 ### 4.1 Standard Geometry Optimization
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Geometry optimization with PySCF + geomeTRIC."""
 from pyscf import gto, dft
 from pyscf.geomopt.geometric_solver import optimize
@@ -380,7 +386,7 @@ Optimization complete?
 ### 5.1 Harmonic Frequency Calculation
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Frequency analysis at optimized geometry."""
 from pyscf import gto, dft
 from pyscf.hessian import rks as rks_hess  # or uks for open-shell
@@ -603,5 +609,4 @@ e_sol = mf.kernel()
 - **Docking**: QE-computed partial charges or ESP can feed into `chem-docking` for better scoring
 - **Molecular generation**: CE's `chem-molgen` generates candidates → QE validates electronic structure
 - **Save calculations** to `research/qchem/calculations/<date>-<system>/`
-- **Git commit**: `cd <repo_root> && git add -A && git commit -m "qchem-dft: <description>"`
-
+- **Git commit**: `cd /home/node/.openclaw/workspace-quantumexpert && git add -A && git commit -m "qchem-dft: <description>"`
