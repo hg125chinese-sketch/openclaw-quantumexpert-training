@@ -27,6 +27,7 @@ QMD=/home/node/.openclaw/.npm-global/bin/qmd
 - **qchem-dft** → DFT calculations, functional/basis selection, SCF diagnostics, geometry optimization, frequency analysis
 - **qchem-excited-state** → excited-state calculations (TD-DFT, excited-state optimization, emission, CASSCF/NEVPT2/CASPT2), active space design, CT/double-excitation failure modes
 - **qchem-workflow** → orchestration / scheduling layer: multi-step QC pipelines, gate enforcement, standardized data formats; **does not compute** (dispatches to qchem-dft + qchem-excited-state)
+- **qchem-prescreen-xtb** → fast prescreen layer (GFN2-xTB via xtb): pre-opt geometries + fail-fast triage before DFT; emits standardized qc_flags and artifacts for qchem-workflow
 - **chem-literature** → chemistry/AI4Chem paper search + deep reads (arXiv / Semantic Scholar)
 - **agent-browser** → browser automation / scraping / form filling
 
@@ -41,6 +42,7 @@ Principle: when the user says "use skill X", route to the corresponding **QMD co
 | 1 | **qchem-dft** | DFT setup, functional/basis selection, SCF convergence, geometry optimization, frequency analysis, thermochemistry | Optimized geometry, frequencies, energies with method labels, convergence reports |
 | 2 | **qchem-excited-state** | UV-Vis/TD-DFT vertical excitations, oscillator strengths, excited-state optimization, emission energies, multi-reference excited states (CASSCF/NEVPT2/CASPT2), active space design | Excitation energies (eV, nm) + f, state character, QC flags (CT/double-excitation risk), method justification |
 | 3 | **qchem-workflow** | End-to-end QC pipelines spanning 2+ steps (opt→freq→properties→excited states→benchmarking), batch screening, enforcing gates and data contracts across skills | Audit log, standardized `summary.json`/tables, per-step QC gates, routed sub-calculation artifacts |
+| 4 | **qchem-prescreen-xtb** | Fast pre-DFT prescreening (GFN2-xTB): pre-optimize geometries and triage likely OPT_FAIL cases before expensive DFT | xTB-optimized XYZ, prescreen QC flags (PASS/XTB_OPT_FAIL/…), per-molecule artifacts + audit fields |
 
 ### Shared vault skills (from ChemicalExpert & others)
 
@@ -78,7 +80,20 @@ When the user asks for an end-to-end pipeline (or any task chaining **2+ QC step
    - This skill **does not run calculations itself**; it **dispatches** to `qchem-dft` and `qchem-excited-state`
    - Plan the full pipeline first; get approval before burning compute
    - Enforce gates between steps (SCF/opt/freq/etc.); never feed a failed step forward
+   - For default batch DFT work in the current QE environment, prefer **B3LYP-D3(BJ)/def2-SVP** over the old B97-D fallback unless a project spec says otherwise
    - Standardize outputs (machine-readable JSON + human-readable summary) and write an audit trail
+
+## Skill: qchem-prescreen-xtb (GFN2-xTB prescreen; no DFT)
+When the user wants a fast pre-DFT screening layer (especially for generative molecules) to reduce DFT OPT_FAIL rates:
+1) Always consult QMD collection: qchem-prescreen-xtb
+2) Workflow:
+   - /home/node/.openclaw/.npm-global/bin/qmd search "<query>" -c qchem-prescreen-xtb -n 10
+   - /home/node/.openclaw/.npm-global/bin/qmd get qmd://qchem-prescreen-xtb/SKILL.md -l 240
+3) Key rules:
+   - Gate 0: verify `xtb` exists and capture version
+   - Run GFN2-xTB geometry optimization via subprocess; write `xtb_opt.xyz` + `prescreen.json`
+   - Emit explicit qc_flags (XTB_OPT_FAIL etc.); do not silently proceed on failure
+   - Integrate as a Step 0/1 prescreen in qchem-workflow batch pipelines
 
 ## Skill: qchem-dft (DFT calculations & diagnostics)
 When doing any DFT calculation, SCF troubleshooting, or basis set selection:
@@ -92,7 +107,8 @@ When doing any DFT calculation, SCF troubleshooting, or basis set selection:
    - Basis set convergence test for quantitative energetics (Δ(TZ→QZ) thresholds)
    - Multi-functional comparison for TM spin states (TPSSh/PBE0/B3LYP minimum)
    - Dispersion correction always on (D3BJ default)
-     - If D3/D4 tooling is unavailable: **do not silently drop dispersion**.
+     - In the current QE environment, `pyscf-dispersion` has been verified, so **B3LYP-D3(BJ)** is restored as a safe default route.
+     - If D3/D4 tooling is unavailable in some other environment: **do not silently drop dispersion**.
        Either (a) switch to a dispersion-inclusive XC supported by the backend (e.g. B97-D / WB97M-V in PySCF), or
        (b) stop and ask the user to confirm running without dispersion.
    - Frequency check after every geometry optimization
@@ -107,7 +123,8 @@ When the user asks for UV-Vis absorption/emission, oscillator strengths, excited
 3) Key rules (high-level):
    - Ground-state SCF/geometry must be converged before excited-state work
    - Always specify the target quantity: vertical excitation vs adiabatic vs 0-0; do not mix
-   - TD-DFT first for screening; escalate to CASSCF/NEVPT2/CASPT2 when CT/double-excitation/diradical character is likely
+   - TD-DFT first for screening; use **ADC(2) via adcc** as the new intermediate single-reference cross-check when TD-DFT confidence is low; escalate to CASSCF/NEVPT2/CASPT2 when CT/double-excitation/diradical character is likely
+   - DF-NEVPT2 is available in PySCF 2.12.1+ via `mrpt.NEVPT(..., density_fit=True)`, but multiroot excited-state comparisons require careful state tracking
    - For CT/Rydberg states: consider range-separated functionals and/or diffuse basis (per skill decision tree)
    - Report each excitation with: method/basis/software/version, state index, energy (eV and nm), oscillator strength f, and qualitative assignment when possible
 

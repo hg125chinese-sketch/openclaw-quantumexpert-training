@@ -101,7 +101,7 @@ Batch QC screening (e.g., 50 molecules from CE):
 │         - Output: initial_geometry.xyz (RDKit)
 │
 ├── Step 2: DFT optimization + frequency [qchem-dft]
-│   ├── Method: B97-D/def2-SVP (fast, dispersion-inclusive; validated default in our PySCF container) or per project spec
+│   ├── Method: B3LYP-D3(BJ)/def2-SVP (restored default now that pyscf-dispersion is verified in QE) or per project spec
 │   ├── Batch strategy: process one molecule at a time
 │   │   ├── If SCF fails: log, skip, continue
 │   │   ├── If optimization doesn't converge: log, skip, continue
@@ -500,7 +500,7 @@ Every pipeline run must produce an audit log:
       "step": 1,
       "skill": "qchem-dft",
       "action": "geometry_optimization",
-      "method": "B97-D/def2-TZVP",
+      "method": "B3LYP-D3(BJ)/def2-TZVP",
       "software": "PySCF 2.12.1",
       "gate_result": "PASS",
       "wall_time_s": 3600,
@@ -510,7 +510,7 @@ Every pipeline run must produce an audit log:
       "step": 2,
       "skill": "qchem-dft",
       "action": "frequency_analysis",
-      "method": "B97-D/def2-TZVP",
+      "method": "B3LYP-D3(BJ)/def2-TZVP",
       "software": "PySCF 2.12.1",
       "gate_result": "PASS",
       "wall_time_s": 5400,

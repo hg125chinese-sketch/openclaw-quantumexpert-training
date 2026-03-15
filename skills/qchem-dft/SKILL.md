@@ -60,7 +60,8 @@ What are you calculating?
 
 ```
 Dispersion correction decision:
-├── D3(BJ) — default for most functionals (Grimme 2011)
+├── D3(BJ) via pyscf-dispersion — default for most functionals in this environment
+│   └── Confirmed working in QE post-update validation; B3LYP-D3(BJ) is available again
 ├── D4 — newer, slightly better for metals, not always available
 ├── -D (built-in, e.g., ωB97X-D) — already includes dispersion
 └── No dispersion → ONLY acceptable if you explicitly justify why
@@ -69,7 +70,10 @@ Dispersion correction decision:
 Rule: If your functional name doesn't end in -D, add D3(BJ).
 
 **Environment-aware rule (mandatory):**
-- If D3/D4 tooling is unavailable in your environment (cannot import/build/run), **do not silently drop dispersion**.
+- In the current QE environment, `pyscf-dispersion` has been verified usable.
+- Therefore **B3LYP-D3(BJ)** is restored as a safe default for main-group geometry / thermochemistry work.
+- **B97-D is now a fallback, not the primary default.** Use it only if the dispersion module cannot be imported/run or if a built-in dispersion functional is otherwise specifically preferred.
+- If D3/D4 tooling is unavailable in some other environment, **do not silently drop dispersion**.
 - Choose one of:
   1) **Switch to a dispersion-inclusive functional available in your backend**, e.g. **B97-D** or **ωB97M-V** (VV10), and document the switch.
   2) **Stop and ask for explicit approval** to run without dispersion, and justify the exception.
@@ -186,8 +190,13 @@ def basis_convergence_test(atom_str, charge=0, spin=0, functional='b3lyp'):
 
 ```python
 #!/opt/conda/envs/chem/bin/python
-"""Standard DFT single-point calculation with proper defaults."""
-from pyscf import gto, dft
+"""Standard DFT single-point calculation with proper defaults.
+
+This environment has verified support for `pyscf-dispersion`, so the cleanest
+route is to use an XC string such as `b3lyp-d3bj` directly.
+"""
+from pyscf import gto, dft, __version__ as pyscf_version
+import importlib
 
 mol = gto.M(
     atom='''
@@ -202,23 +211,24 @@ mol = gto.M(
 )
 
 mf = dft.RKS(mol)     # RKS for closed-shell; UKS for open-shell
-mf.xc = 'b3lyp'       # functional
 mf.grids.level = 4    # integration grid fineness (3=default, 4=fine, 5=ultrafine)
 mf.conv_tol = 1e-9    # energy convergence (Ha); default 1e-9 is good
 mf.max_cycle = 200    # max SCF iterations; increase for difficult cases
 
-# Dispersion (D3BJ via dftd3 interface if available)
+# Preferred default in QE: explicit D3(BJ) via pyscf-dispersion
 try:
-    from pyscf import dftd3
-    mf = dftd3.dftd3(mf)
-    print("D3(BJ) dispersion correction enabled")
+    importlib.import_module('pyscf.dispersion.dftd3')
+    mf.xc = 'b3lyp-d3bj'
+    print(f"Using B3LYP-D3(BJ) via pyscf-dispersion | PySCF {pyscf_version}")
 except ImportError:
-    print("⚠️ dftd3 not available; running without dispersion")
+    mf.xc = 'b97-d'
+    print("⚠️ pyscf-dispersion not available; falling back to B97-D")
 
 e_tot = mf.kernel()
 
 if mf.converged:
     print(f"\n✅ SCF converged: E = {e_tot:.10f} Ha")
+    print(f"Method label: {mf.xc}/def2-tzvp, PySCF {pyscf_version}")
 else:
     print(f"\n❌ SCF NOT converged after {mf.max_cycle} cycles")
     print("   → See Phase 3.2 for troubleshooting")

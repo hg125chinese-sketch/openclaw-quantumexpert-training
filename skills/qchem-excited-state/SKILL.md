@@ -42,9 +42,13 @@ What excited-state calculation do you need?
 ├── Medium system (15–50 atoms), need reliable energetics
 │   ├── Is it single-reference? (check Λ diagnostic, see Phase 2.4)
 │   │   ├── YES (Λ > 0.3) → TD-DFT is likely fine
-│   │   └── NO (Λ < 0.3) or unsure → consider multi-reference
+│   │   └── NO (Λ < 0.3) or unsure → consider wavefunction methods
+│   ├── Intermediate rung (recommended and now validated in QE): ADC(2) via adcc
+│   │   ├── Status: **VERIFIED AVAILABLE** in QE deep-research validation
+│   │   ├── Use when: TD-DFT state ordering is unstable across functionals, or you need a wavefunction-based single-reference cross-check
+│   │   └── If adcc is unavailable in a given environment: fall back to TD-DFT + careful diagnostics, or escalate to multi-reference when indicated
 │   └── Does it involve double excitation character?
-│       ├── NO → TD-DFT may still work
+│       ├── NO → TD-DFT / ADC(2) may work
 │       └── YES → TD-DFT will fail → multi-reference required (Phase 3)
 │
 ├── Small system (< 15 atoms), need high accuracy
@@ -63,7 +67,7 @@ What excited-state calculation do you need?
 ### 2.1 Standard TD-DFT Calculation
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """TD-DFT vertical excitation energies with PySCF."""
 from pyscf import gto, dft, tddft
 import numpy as np
@@ -100,6 +104,48 @@ for i, (e_ev, f_osc) in enumerate(zip(td.e * 27.211386, td.oscillator_strength()
     lam_nm = 1239.84 / e_ev if e_ev > 0 else float('inf')
     print(f"  S{i+1:>3d}  {e_ev:10.4f}  {lam_nm:10.1f}  {f_osc:10.4f}")
 ```
+
+### 2.1A ADC(2) via adcc: Minimal Cross-Check Example
+
+```python
+#!/opt/conda/envs/chem/bin/python
+"""Minimal ADC(2) vertical excitation example via adcc + PySCF.
+
+Use this as the intermediate rung between TD-DFT and multi-reference when the
+system is still plausibly single-reference, but TD-DFT confidence is low.
+"""
+from pyscf import gto, scf, __version__ as pyscf_version
+import adcc
+
+HARTREE_TO_EV = 27.211386245988
+
+mol = gto.M(
+    atom='''
+    O  0.000000  0.000000  0.000000
+    H  0.758602  0.000000  0.504284
+    H -0.758602  0.000000  0.504284
+    ''',
+    basis='sto-3g',  # smoke-test basis; use def2-SVP/TZVP for real work
+    charge=0,
+    spin=0,
+    verbose=4,
+)
+
+mf = scf.RHF(mol)
+mf.conv_tol = 1e-10
+mf.kernel()
+assert mf.converged, "Ground-state HF not converged — cannot proceed to ADC(2)"
+
+state = adcc.adc2(mf, n_singlets=3)
+
+print(f"Method: ADC(2)/{mol.basis} | Host SCF: RHF | PySCF {pyscf_version} | adcc {adcc.__version__}")
+for i, e_ha in enumerate(state.excitation_energy, start=1):
+    e_ev = float(e_ha) * HARTREE_TO_EV
+    lam_nm = 1239.841984 / e_ev if e_ev > 0 else float('inf')
+    print(f"S{i}: {e_ev:.4f} eV  ({lam_nm:.1f} nm)")
+```
+
+**QE note:** `adcc` has been smoke-tested successfully against a PySCF 2.12.1 SCF reference in this workspace. Treat ADC(2) as a **wavefunction-based single-reference cross-check**, not as a replacement for CASSCF/NEVPT2 in strongly multi-reference cases.
 
 ### 2.2 Functional Selection for Excited States
 
@@ -292,7 +338,7 @@ Active space design strategy:
 ### 3.4 CASSCF in PySCF
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """State-averaged CASSCF for excited states with PySCF."""
 from pyscf import gto, scf, mcscf
 import numpy as np
@@ -390,8 +436,13 @@ CASSCF not converging or giving wrong states?
 ### 3.6 NEVPT2: Dynamic Correlation on Top of CASSCF
 
 ```python
-#!/usr/bin/env python
-"""NEVPT2 on top of SA-CASSCF for quantitative excited-state energies."""
+#!/opt/conda/envs/chem/bin/python
+"""NEVPT2 on top of SA-CASSCF for quantitative excited-state energies.
+
+PySCF 2.12.1+ also supports density-fitted NEVPT2 via density_fit=True.
+Use that route first for larger jobs, but benchmark carefully for multistate
+excited-state comparisons.
+"""
 from pyscf import gto, scf, mcscf, mrpt
 
 mol = gto.M(atom='''...''', basis='def2-tzvp', charge=0, spin=0, verbose=4)
@@ -412,7 +463,8 @@ print(f"Software: PySCF {gto.__version__}\n")
 
 e_nevpt2 = []
 for i in range(n_states):
-    e_corr = mrpt.NEVPT(mc, root=i).kernel()
+    # density_fit=True activates DF-NEVPT2 in PySCF 2.12.1+
+    e_corr = mrpt.NEVPT(mc, root=i, density_fit=True).kernel()
     e_total = mc.e_states[i] + e_corr
     e_nevpt2.append(e_total)
     de_cas = (mc.e_states[i] - mc.e_states[0]) * 27.211386
@@ -423,6 +475,12 @@ print(f"\nNEVPT2 shifts excitation energies by including dynamic correlation.")
 print(f"Typical effect: 0.1–0.5 eV shift relative to CASSCF.")
 print(f"If shift > 1.0 eV → active space may be too small (missing important correlations).")
 ```
+
+**DF-NEVPT2 note (PySCF 2.12.1+):**
+- `mrpt.NEVPT(mc, root=i, density_fit=True)` enables density-fitted NEVPT2.
+- In QE validation, DF-NEVPT2 reproduced a formaldehyde CAS(6,5) ground-state correction essentially exactly while giving a modest speedup.
+- For **excited-state multiroot comparisons**, be careful: root-by-root differences may reflect **state tracking / character changes**, not necessarily a true DF accuracy failure.
+- Therefore, benchmark multistate DF-NEVPT2 using **state character analysis**, not only raw root index matching.
 
 ### 3.7 NEVPT2 vs CASPT2: Which to Use?
 
@@ -500,7 +558,7 @@ Solvatochromism analysis protocol:
 ### 5.1 TD-DFT Excited-State Optimization
 
 ```python
-#!/usr/bin/env python
+#!/opt/conda/envs/chem/bin/python
 """Optimize geometry on excited-state surface (TD-DFT)."""
 from pyscf import gto, dft, tddft
 from pyscf.geomopt.geometric_solver import optimize
@@ -637,5 +695,4 @@ Can't afford the "right" method?
 - **Literature**: Use `chem-literature` for benchmark data and method comparison papers
 - **Cross-agent**: CE provides candidate molecules → QE computes excited-state properties (optical gap, absorption λ) → CE uses for screening (e.g., OPV material selection)
 - **Save calculations** to `research/qchem/excited-state/<date>-<system>/`
-- **Git commit**: `cd <repo_root> && git add -A && git commit -m "qchem-excited-state: <description>"`
-
+- **Git commit**: `cd /home/node/.openclaw/workspace-quantumexpert && git add -A && git commit -m "qchem-excited-state: <description>"`
