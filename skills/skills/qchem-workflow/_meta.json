@@ -1,0 +1,12 @@
+{
+  "owner": "heng",
+  "slug": "qchem-workflow",
+  "displayName": "QC Workflow Orchestration & Cross-Agent Data Pipelines",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1740192000000,
+    "commit": "local"
+  },
+  "history": []
+}
+

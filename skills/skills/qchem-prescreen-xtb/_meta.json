@@ -1,0 +1,11 @@
+{
+  "owner": "heng",
+  "slug": "qchem-prescreen-xtb",
+  "displayName": "xTB Prescreen (GFN2-xTB) for DFT Workflows",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1772830000000,
+    "commit": "local"
+  },
+  "history": []
+}

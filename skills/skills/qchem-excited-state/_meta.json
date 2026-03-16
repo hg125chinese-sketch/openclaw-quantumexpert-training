@@ -1,0 +1,12 @@
+{
+  "owner": "heng",
+  "slug": "qchem-excited-state",
+  "displayName": "Excited-State Methods (TD-DFT / CASSCF / NEVPT2)",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1740192000000,
+    "commit": "local"
+  },
+  "history": []
+}
+
