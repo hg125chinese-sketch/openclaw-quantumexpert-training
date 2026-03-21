@@ -6,7 +6,7 @@ How I trained an LLM agent ("QuantumExpert") to autonomously run quantum chemist
 
 I trained an AI agent ("QuantumExpert") with 4 specialized quantum chemistry skills using a systematic methodology adapted from earlier [ChemicalExpert](https://github.com/hg125chinese-sketch/openclaw-chemicalexpert-training) and [ProteinEngineer](https://github.com/hg125chinese-sketch/openclaw-proteinengineer-training) agent training. The agent learned to autonomously plan and execute electronic structure calculations: selecting DFT functionals and basis sets, diagnosing SCF convergence failures, running frequency analysis, designing CASSCF active spaces, and delivering batch QC screening results to other agents.
 
-Over seven DMTA cycles plus an analog exploration campaign on an IPF/ALK5 drug discovery target, the CE↔QE collaboration processed 15 molecules through DFT screening — achieving 100% pass rate across three consecutive cycles and the analog campaign (9/9 in the DiffSBDD era). The agent evolved from a B97-D workaround (D3 unavailable) to B3LYP-D3(BJ) as the verified default, reducing DFT wall time from 7-10 hours to under 2 hours per molecule.
+Over seven DMTA cycles, an analog exploration campaign, N-N-free de-risking, and successor optimization on an IPF/ALK5 drug discovery target, the CE↔QE collaboration processed 20 molecules through DFT screening — achieving 100% pass rate across the entire DiffSBDD era (14/14). The agent evolved from a B97-D workaround (D3 unavailable) to B3LYP-D3(BJ) as the verified default, reducing DFT wall time from 7-10 hours to under 2 hours per molecule. The final molecule (NNF05_S05) achieved the project-wide highest HOMO-LUMO gap (4.97 eV) and lowest dipole moment (1.54 D) — the cleanest electronic structure profile in the entire campaign.
 
 All training artifacts, skills, and case studies are open-source.
 
@@ -161,23 +161,37 @@ qc_results.json ←──────────────────── 
 Multi-objective scoring
     │
 Retrosynthesis + analog exploration
+    │
+N-N-free de-risking + successor optimization
 ```
 
 ## CE↔QE Collaboration Statistics
 
-Over seven DMTA cycles plus an analog exploration campaign:
+Over seven DMTA cycles, analog exploration, N-N-free de-risking, and successor optimization:
 
-| Cycle | Method | Sent | PASS | Fail Rate |
-|-------|--------|------|------|-----------|
-| 3 | B97-D/def2-SVP | 4 | 2 | 50% |
-| 4 | B97-D/def2-SVP | 2 | 1 | 50% |
-| 5 | B97-D/def2-SVP | 3 | 3 | 0% |
-| 6 | B97-D/def2-SVP | 2 | 2 | 0% |
-| 7 | B3LYP-D3(BJ)/def2-SVP | 1 | 1 | 0% |
-| Analogs | B3LYP-D3(BJ)/def2-SVP | 3 | 3 | 0% |
-| **Total** | — | **15** | **12** | **20%** |
+| Campaign | Method | Sent | PASS | Fail Rate |
+|----------|--------|------|------|-----------|
+| Cycle 3 | B97-D/def2-SVP | 4 | 2 | 50% |
+| Cycle 4 | B97-D/def2-SVP | 2 | 1 | 50% |
+| Cycle 5 | B97-D/def2-SVP | 3 | 3 | 0% |
+| Cycle 6 | B97-D/def2-SVP | 2 | 2 | 0% |
+| Cycle 7 | B3LYP-D3(BJ)/def2-SVP | 1 | 1 | 0% |
+| Analogs (mol\_0021) | B3LYP-D3(BJ)/def2-SVP | 3 | 3 | 0% |
+| NNF (N-N-free) | B3LYP-D3(BJ)/def2-SVP | 3 | 3 | 0% |
+| NNF05 successors | B3LYP-D3(BJ)/def2-SVP | 2 | 2 | 0% |
+| **Total** | — | **20** | **17** | **15%** |
 
-DiffSBDD era (Cycles 5-7 + analogs): **9/9 = 100% PASS**.
+DiffSBDD era (Cycles 5-7 + analogs + NNF + NNF05 successors): **14/14 = 100% PASS**.
+
+### QE Electronic Structure Highlights
+
+| Molecule | Campaign | gap (eV) | dipole (D) | Vina | Note |
+|----------|----------|----------|------------|------|------|
+| NNF05\_S05 | NNF05 successor | **4.97** | **1.54** | -9.64 | Project-wide best gap + lowest dipole |
+| NNF07 | NNF | 4.96 | 5.14 | — | Second highest gap |
+| A3\_01 | Analog | 4.79 | 1.62 | — | Highest score\_final (10.635) |
+| NNF05\_S10 | NNF05 successor | 4.76 | 2.67 | — | Strongest Boltz-2 among successors (0.591) |
+| NNF02 | NNF | 4.61 | 3.95 | **-10.71** | Project-wide best Vina + N-N-free |
 
 ## Ecosystem Deep Research (2026)
 
@@ -217,6 +231,8 @@ After the initial training and collaboration cycles, QE conducted a systematic s
 **xTB prescreening has limits.** xTB PASS does not predict DFT PASS (validated: 4/4 xTB PASS, 2/4 DFT OPT\_FAIL). Its value is fail-fast for catastrophic geometries and cheap geometry preconditioning, not convergence prediction.
 
 **DiffSBDD 3D coordinates are for design, not QC.** Pocket-conditioned diffusion generates better SMILES but its 3D coordinates carry extreme force-field strain (450-630 kcal/mol). RDKit re-embed is required before DFT.
+
+**DiffSBDD molecules are electronically cleaner.** 14/14 DFT PASS in the DiffSBDD era vs 3/6 in the VAE era. Pocket-conditioned generation produces molecules that are not only better docking candidates but also more tractable for quantum chemistry.
 
 ## Known Limitations
 
@@ -260,7 +276,7 @@ After the initial training and collaboration cycles, QE conducted a systematic s
 - **QC backend:** PySCF 2.12.1, pyscf-dispersion 1.5.0, geomeTRIC 1.1, xTB 6.7.1, adcc 0.16.1
 - **Cheminformatics:** RDKit 2025.03.6, MMFF, ETKDGv3
 - **Related projects:**
-  - [ChemicalExpert training](https://github.com/hg125chinese-sketch/openclaw-chemicalexpert-training) (drug discovery, 28 skills, 7 cycles + analog exploration)
+  - [ChemicalExpert training](https://github.com/hg125chinese-sketch/openclaw-chemicalexpert-training) (drug discovery, 28 skills, 7 cycles + analog + NNF campaigns)
   - [ProteinEngineer training](https://github.com/hg125chinese-sketch/openclaw-proteinengineer-training) (protein engineering, 7 skills, 3 practice runs)
   - [Multi-agent methodology overview](https://github.com/hg125chinese-sketch/openclaw-multiagent-drug-discovery)
 
